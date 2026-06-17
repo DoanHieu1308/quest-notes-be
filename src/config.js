@@ -42,7 +42,9 @@ function buildMongoUri() {
 
   if (template && username && password) {
     return normalizeMongoUri(
-      template.replace('<db_username>', encodeURIComponent(username)),
+      template
+        .replace('<db_username>', encodeURIComponent(username))
+        .replace('<db_password>', encodeURIComponent(password)),
     );
   }
 
