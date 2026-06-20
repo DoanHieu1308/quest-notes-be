@@ -99,7 +99,12 @@ function normalizeCard(card = {}) {
   const phonetic = stripOuterBrackets(
     String(card.phonetic || backParts.phonetic || ''),
   );
-  const back = buildFlashcardBack(card.back, meaning, phonetic);
+  const hasStructuredBack = Boolean(card.meaning || card.phonetic);
+  const back = buildFlashcardBack(
+    hasStructuredBack ? '' : card.back,
+    meaning,
+    phonetic,
+  );
 
   return {
     id: String(card.id || crypto.randomUUID()),
