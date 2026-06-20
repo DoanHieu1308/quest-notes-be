@@ -93,11 +93,58 @@ function normalizeDeck(deck = {}) {
 }
 
 function normalizeCard(card = {}) {
+  const front = String(card.front || '');
+  const backParts = parseFlashcardBack(card.back);
+  const meaning = String(card.meaning || backParts.meaning || '');
+  const phonetic = stripOuterBrackets(
+    String(card.phonetic || backParts.phonetic || ''),
+  );
+  const back = buildFlashcardBack(card.back, meaning, phonetic);
+
   return {
     id: String(card.id || crypto.randomUUID()),
     deckId: String(card.deckId || 'default-flashcard-deck'),
-    front: String(card.front || ''),
-    back: String(card.back || ''),
+    front,
+    back,
+    meaning,
+    phonetic,
     mastered: Boolean(card.mastered),
   };
+}
+
+function buildFlashcardBack(back, meaning, phonetic) {
+  const existingBack = String(back || '').trim();
+  if (existingBack) return existingBack;
+
+  const parts = [];
+  if (meaning) parts.push(meaning);
+  if (phonetic) parts.push(`[${phonetic}]`);
+  return parts.join('\n');
+}
+
+function parseFlashcardBack(back) {
+  const lines = String(back || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return { meaning: '', phonetic: '' };
+
+  const maybePhonetic = lines.at(-1);
+  const hasPhonetic =
+    maybePhonetic.startsWith('[') &&
+    maybePhonetic.endsWith(']') &&
+    maybePhonetic.length > 1;
+
+  return {
+    meaning: hasPhonetic ? lines.slice(0, -1).join('\n') : lines.join('\n'),
+    phonetic: hasPhonetic ? stripOuterBrackets(maybePhonetic) : '',
+  };
+}
+
+function stripOuterBrackets(value) {
+  const trimmed = String(value || '').trim();
+  return trimmed.startsWith('[') && trimmed.endsWith(']') && trimmed.length > 1
+    ? trimmed.slice(1, -1).trim()
+    : trimmed;
 }
