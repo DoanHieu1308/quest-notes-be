@@ -30,7 +30,7 @@ export function normalizeState(state = {}) {
         ? state.flashDecks.map(normalizeDeck)
         : emptyState().flashDecks,
     flashCards: Array.isArray(state.flashCards)
-      ? state.flashCards.map(normalizeCard)
+      ? normalizeFlashCards(state.flashCards)
       : [],
   };
 }
@@ -92,6 +92,18 @@ function normalizeDeck(deck = {}) {
   };
 }
 
+function normalizeFlashCards(cards = []) {
+  const knownFronts = new Set();
+  const normalized = [];
+  cards.map(normalizeCard).forEach((card) => {
+    const key = `${card.deckId}:${frontKey(card.front)}`;
+    if (!frontKey(card.front) || knownFronts.has(key)) return;
+    knownFronts.add(key);
+    normalized.push(card);
+  });
+  return normalized;
+}
+
 function normalizeCard(card = {}) {
   const front = String(card.front || '');
   const backParts = parseFlashcardBack(card.back);
@@ -115,6 +127,10 @@ function normalizeCard(card = {}) {
     phonetic,
     mastered: Boolean(card.mastered),
   };
+}
+
+function frontKey(front) {
+  return String(front || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function buildFlashcardBack(back, meaning, phonetic) {
