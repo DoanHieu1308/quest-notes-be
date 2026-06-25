@@ -96,8 +96,8 @@ function normalizeFlashCards(cards = []) {
   const knownFronts = new Set();
   const normalized = [];
   cards.map(normalizeCard).forEach((card) => {
-    const key = `${card.deckId}:${frontKey(card.front)}`;
-    if (!frontKey(card.front) || knownFronts.has(key)) return;
+    const key = `${card.deckId}:${frontKey(card.frontText || card.front)}`;
+    if (!frontKey(card.frontText || card.front) || knownFronts.has(key)) return;
     knownFronts.add(key);
     normalized.push(card);
   });
@@ -105,32 +105,74 @@ function normalizeFlashCards(cards = []) {
 }
 
 function normalizeCard(card = {}) {
-  const front = String(card.front || '');
-  const backParts = parseFlashcardBack(card.back);
-  const meaning = String(card.meaning || backParts.meaning || '');
-  const phonetic = stripOuterBrackets(
-    String(card.phonetic || backParts.phonetic || ''),
-  );
-  const hasStructuredBack = Boolean(card.meaning || card.phonetic);
-  const back = buildFlashcardBack(
-    hasStructuredBack ? '' : card.back,
-    meaning,
-    phonetic,
-  );
+  const legacy = parseLegacyCard(card);
+  const frontText = String(card.frontText || legacy.frontText || '').trim();
+  const frontPhonetic = stripOuterBrackets(card.frontPhonetic || legacy.frontPhonetic || '');
+  const backText = String(card.backText || legacy.backText || '').trim();
+  const backPhonetic = stripOuterBrackets(card.backPhonetic || legacy.backPhonetic || '');
+  const meaning = String(card.meaning || legacy.meaning || '').trim();
+  const front = sideText(frontText, frontPhonetic);
+  const back = backSideText(backText, backPhonetic, meaning);
 
   return {
     id: String(card.id || crypto.randomUUID()),
     deckId: String(card.deckId || 'default-flashcard-deck'),
     front,
     back,
+    frontText,
+    frontPhonetic,
+    backText,
+    backPhonetic,
     meaning,
-    phonetic,
     mastered: Boolean(card.mastered),
   };
 }
 
 function frontKey(front) {
   return String(front || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function sideText(text, phonetic) {
+  const parts = [];
+  if (text) parts.push(text);
+  if (phonetic) parts.push(`[${stripOuterBrackets(phonetic)}]`);
+  return parts.join('\n');
+}
+
+function backSideText(text, phonetic, meaning) {
+  return [sideText(text, phonetic), meaning]
+    .filter((part) => String(part || '').trim())
+    .join('\n');
+}
+
+function parseLegacyCard(card = {}) {
+  const frontSide = parseSide(card.front || '');
+  const backLines = String(card.back || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const backSide = parseSide(backLines.slice(0, 2).join('\n'));
+  return {
+    frontText: frontSide.text || String(card.front || '').trim(),
+    frontPhonetic: frontSide.phonetic,
+    backText: backSide.text || String(card.meaning || '').trim(),
+    backPhonetic: backSide.phonetic || String(card.phonetic || '').trim(),
+    meaning: card.meaning || (backLines.length > 2 ? backLines.slice(2).join('\n') : ''),
+  };
+}
+
+function parseSide(value) {
+  const lines = String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return { text: '', phonetic: '' };
+  const last = lines.at(-1);
+  const hasPhonetic = last.startsWith('[') && last.endsWith(']') && last.length > 1;
+  return {
+    text: hasPhonetic ? lines.slice(0, -1).join('\n') : lines.join('\n'),
+    phonetic: hasPhonetic ? stripOuterBrackets(last) : '',
+  };
 }
 
 function buildFlashcardBack(back, meaning, phonetic) {
