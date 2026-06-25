@@ -111,9 +111,14 @@ function normalizeCard(card = {}) {
   const legacy = parseLegacyCard(card);
   const frontText = String(card.frontText || legacy.frontText || '').trim();
   const frontPhonetic = stripOuterBrackets(card.frontPhonetic || legacy.frontPhonetic || '');
-  const backText = String(card.backText || legacy.backText || '').trim();
-  const backPhonetic = stripOuterBrackets(card.backPhonetic || legacy.backPhonetic || '');
-  const meaning = String(card.meaning || legacy.meaning || '').trim();
+  const backFields = normalizeBackFields(
+    card.backText || legacy.backText || '',
+    card.backPhonetic || legacy.backPhonetic || '',
+    card.meaning || legacy.meaning || '',
+  );
+  const backText = backFields.backText;
+  const backPhonetic = backFields.backPhonetic;
+  const meaning = backFields.meaning;
   const front = sideText(frontText, frontPhonetic);
   const back = backSideText(backText, backPhonetic, meaning);
 
@@ -147,6 +152,39 @@ function backSideText(text, phonetic, meaning) {
   return [sideText(text, phonetic), meaning]
     .filter((part) => String(part || '').trim())
     .join('\n');
+}
+
+function normalizeBackFields(rawBackText, rawBackPhonetic, rawMeaning) {
+  const parsed = parseBackTextLines(rawBackText);
+  const hasBackStructure = Boolean(parsed.phonetic || parsed.meaning);
+  return {
+    backText: hasBackStructure ? parsed.text : String(rawBackText || '').trim(),
+    backPhonetic: stripOuterBrackets(rawBackPhonetic || (hasBackStructure ? parsed.phonetic : '')),
+    meaning: String(rawMeaning || parsed.meaning || '').trim(),
+  };
+}
+
+function parseBackTextLines(value) {
+  const lines = String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return { text: '', phonetic: '', meaning: '' };
+  const phoneticIndex = lines.findIndex(
+    (line) => line.startsWith('[') && line.endsWith(']') && line.length > 1,
+  );
+  if (phoneticIndex >= 0) {
+    return {
+      text: lines.slice(0, phoneticIndex).join('\n'),
+      phonetic: stripOuterBrackets(lines[phoneticIndex]),
+      meaning: lines.slice(phoneticIndex + 1).join('\n'),
+    };
+  }
+  return {
+    text: lines[0],
+    phonetic: '',
+    meaning: lines.slice(1).join('\n'),
+  };
 }
 
 function parseLegacyCard(card = {}) {
