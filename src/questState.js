@@ -96,8 +96,11 @@ function normalizeFlashCards(cards = []) {
   const knownFronts = new Set();
   const normalized = [];
   cards.map(normalizeCard).forEach((card) => {
-    const key = `${card.deckId}:${frontKey(card.frontText || card.front)}`;
-    if (!frontKey(card.frontText || card.front) || knownFronts.has(key)) return;
+    const sideKey = frontKey(card.frontText || card.front, card.frontPhonetic);
+    const hasFront = Boolean(card.frontText || card.frontPhonetic);
+    const hasBack = Boolean(card.backText || card.backPhonetic || card.meaning);
+    const key = `${card.deckId}:${sideKey}`;
+    if (!hasFront || !hasBack || knownFronts.has(key)) return;
     knownFronts.add(key);
     normalized.push(card);
   });
@@ -128,8 +131,9 @@ function normalizeCard(card = {}) {
   };
 }
 
-function frontKey(front) {
-  return String(front || '').trim().replace(/\s+/g, ' ').toLowerCase();
+function frontKey(front, phonetic = '') {
+  const value = String(front || '').trim() || String(phonetic || '').trim();
+  return value.replace(/\s+/g, ' ').toLowerCase();
 }
 
 function sideText(text, phonetic) {
