@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from '../src/config.js';
+import { enrichFlashcards } from '../src/flashcardEnrichment.js';
 import { readState, writeState } from '../src/questState.js';
 
 const app = express();
@@ -25,6 +26,15 @@ app.post('/api/quest/sync', async (request, response, next) => {
   try {
     const state = await writeState(request.body?.state ?? request.body);
     response.json({ success: true, data: state });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/flashcards/enrich', async (request, response, next) => {
+  try {
+    const result = await enrichFlashcards(request.body?.items);
+    response.json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
