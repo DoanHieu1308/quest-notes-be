@@ -89,6 +89,7 @@ function normalizeDeck(deck = {}) {
     name: String(deck.name || ''),
     createdAt: Number.parseInt(deck.createdAt, 10) || 0,
     rewardClaimed: Boolean(deck.rewardClaimed),
+    sideSwapped: Boolean(deck.sideSwapped),
   };
 }
 
